@@ -1,0 +1,38 @@
+# Created by https://www.toptal.com/developers/gitignore/api/progressabl
+# Edit at https://www.toptal.com/developers/gitignore?templates=progressabl
+
+### ProgressABL ###
+# Developer Studio
+/.dbconnection
+/.settings
+/.project
+/.propath
+/debugger.pref
+/protrace*
+*.r
+*.pl
+
+# DataDigger
+DataDigger/Cache
+DataDigger/backup
+DataDigger/DataDigger-*.ini
+DataDigger/DataDigger*.log
+
+# General folders
+/old/
+/debug/
+/log/
+/tmp/
+
+
+# General files
+# .gitignore
+*.tmp
+*.bak
+*.bck
+*.old
+*- Copy.*
+*- Copy (*).*
+*.log
+
+# End of https://www.toptal.com/developers/gitignore/api/progressabl
