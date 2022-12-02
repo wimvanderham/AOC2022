@@ -1,11 +1,11 @@
 
 /*------------------------------------------------------------------------
-    File        : day01.p
+    File        : day01_large.p
     Purpose     : 
 
     Syntax      :
 
-    Description : Solution for Day01 of ACO2022
+    Description : Solution for Day01 of ACO2022 - Optimized for large file
 
     Author(s)   : Wim van der Ham (WITS)
     Created     : Thu Dec 01 06:28:35 CET 2022
@@ -44,6 +44,10 @@ DEFINE TEMP-TABLE ttElf
    FIELD iNr AS INTEGER 
    FIELD iTotCal AS INT64
 INDEX indNR IS UNIQUE iNr.
+/* Variables for Large input file */
+DEFINE VARIABLE iCal   AS INT64   NO-UNDO.
+DEFINE VARIABLE iTotal AS INT64   NO-UNDO.
+DEFINE VARIABLE iMax   AS INT64   NO-UNDO EXTENT 3.
 
 /* ********************  Preprocessor Definitions  ******************** */
 
@@ -77,81 +81,59 @@ END.
 /* Start Processing */
 ETIME (YES).
 
-COPY-LOB FROM FILE "input\01.txt" TO OBJECT lcInput.
-
-/* Read Input into Temp-table */
-ReadBlock:
-DO iLine = 1 TO NUM-ENTRIES (lcInput, "~n"):
-   
-   cLine = TRIM (ENTRY (iLine, lcInput, "~n")).
-   IF cLine EQ "" THEN DO:
-      iNr = iNr + 1.
-      NEXT ReadBlock.
-   END.
-
-   FIND ttElf WHERE ttElf.iNr EQ iNr NO-ERROR.
-   IF NOT AVAILABLE ttElf THEN DO:
-      CREATE ttElf.
+INPUT FROM "C:\Users\wim\Downloads\aoc_2022_day01_large_input.txt".
+REPEAT:
+   IMPORT UNFORMATTED iCal.
+   IF iCal EQ 0 THEN DO:
+      IF iTotal GT iMax[1] THEN DO:
+         ASSIGN 
+            iMax[3] = iMax[2]
+            iMax[2] = iMax[1]
+            iMax[1] = iTotal
+         .
+      END.
+      ELSE DO:
+         IF iTotal GT iMax[2] THEN DO:
+            ASSIGN 
+               iMax[3] = iMax[2]
+               iMax[2] = iTotal
+            .
+         END.
+         ELSE DO:
+            IF iTotal GT iMax[3] THEN DO:
+               ASSIGN 
+                  iMax[3] = iTotal
+               .
+            END.
+         END.
+      END.
       ASSIGN 
-         ttElf.iNr = iNr
+         iTotal = 0
       .
    END.
-   
-   ASSIGN 
-      ttElf.iTotCal = ttElf.iTotCal + INTEGER (cLine)
-   .
-END. /* ReadBlock: */
-
-IF lvlShow THEN DO:
-   RUN sy\win\wbrowsett.w
-      (INPUT TEMP-TABLE ttElf:HANDLE).
+   ELSE DO:
+      iTotal = iTotal + iCal.
+   END. 
 END.
-   
-IF lPart[1] THEN DO:
-   /* Process Part One */
-   FOR EACH ttElf
-   BY ttElf.iTotCal DESCENDING:
-      iSolution = ttElf.iTotCal.
-      LEAVE.
-   END.
+INPUT CLOSE.
 
-   OUTPUT TO "clipboard".
-   PUT UNFORMATTED iSolution SKIP.
-   OUTPUT CLOSE.
-   
-   MESSAGE 
-      SUBSTITUTE ("Solution: &1.", 
-         iSolution) SKIP (1)
-      SUBSTITUTE ("Found solution in &1 msecs.", ETIME)
-   VIEW-AS ALERT-BOX TITLE " 2022 - Day 01 - Part One".
-END. /* Process Part One */
 
-IF lPart[2] THEN DO:
-   /* Process Part Two */
-   ETIME (YES).
+/* Part 1 */
+iSolution = iMax[1].
+MESSAGE 
+   SUBSTITUTE ("Solution: &1.", 
+      iSolution) SKIP (1)
+   SUBSTITUTE ("Found solution in &1 msecs.", ETIME)
+   STRING (INTEGER (ETIME / 1000), "HH:MM:SS")
+VIEW-AS ALERT-BOX TITLE " 2022 - Day 01 - Part One".
 
-   iSolution = 0.
-   FOR EACH ttElf
-   BY ttElf.iTotCal DESCENDING:
-      ACCUM "" (COUNT).
-      
-      iSolution = iSolution + ttElf.iTotCal.
-      
-      IF (ACCUM COUNT "") EQ 3 THEN 
-         LEAVE.
-   END.
+/* Part 2 */
+iSolution = iMax[1] + iMax[2] + iMax[3].
 
-   
-   OUTPUT TO "clipboard".
-   PUT UNFORMATTED iSolution SKIP.
-   OUTPUT CLOSE.
-   
-   MESSAGE 
-      SUBSTITUTE ("Solution: &1.", 
-         iSolution) SKIP (1)
-      SUBSTITUTE ("Found solution in &1 msecs.", ETIME)
-   VIEW-AS ALERT-BOX TITLE " 2022 - Day 01 - Part Two".
-END. /* Process Part Two */
+MESSAGE 
+   SUBSTITUTE ("Solution: &1.", 
+      iSolution) SKIP (1)
+VIEW-AS ALERT-BOX TITLE " 2022 - Day 01 - Part Two".
 
 CATCH oError AS Progress.Lang.Error :
    DEFINE VARIABLE iMessage      AS INTEGER   NO-UNDO.
