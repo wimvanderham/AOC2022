@@ -49,13 +49,16 @@ INDEX indItem IS UNIQUE iNr lCompartment iPosition
 INDEX indSearch iNr lCompartment iPriority.
 
 DEFINE TEMP-TABLE ttDouble
-   FIELD iNr AS INTEGER 
+   FIELD iNr       AS INTEGER 
    FIELD iPriority AS INTEGER 
 INDEX indPriority IS UNIQUE iNr iPriority.
 
 DEFINE BUFFER ttOtherRuckSackContents FOR ttRuckSackContents.
+DEFINE BUFFER ttThirdRuckSackContents FOR ttRuckSackContents.
+
 /* Specific variables */ 
-DEFINE VARIABLE lCompartment AS LOGICAL NO-UNDO.   
+DEFINE VARIABLE lCompartment   AS LOGICAL NO-UNDO.   
+DEFINE VARIABLE iCheckRuckSack AS INTEGER NO-UNDO.
    
 /* ************************  Function Prototypes ********************** */
 
@@ -187,8 +190,43 @@ IF lPart[2] THEN DO:
    /* Process Part Two */
    ETIME (YES).
 
-   iSolution = 0.
+   EMPTY TEMP-TABLE ttDouble.
    
+   iSolution = 0.
+
+   iCheckRuckSack = 1.
+   REPEAT:
+      FIND FIRST ttRuckSackContents
+      WHERE ttRuckSackContents.iNr EQ iCheckRuckSack NO-ERROR.
+      IF NOT AVAILABLE ttRuckSackContents THEN DO:
+         /* No more RuckSacks to check */
+         LEAVE.
+      END.
+
+      FOR EACH ttRuckSackContents 
+      WHERE ttRuckSackContents.iNr EQ iCheckRuckSack,
+      EACH  ttOtherRuckSackContents 
+      WHERE ttOtherRuckSackContents.iNr       EQ ttRuckSackContents.iNr + 1
+      AND   ttOtherRuckSackContents.iPriority EQ ttRuckSackContents.iPriority,
+      EACH  ttThirdRuckSackContents
+      WHERE ttThirdRuckSackContents.iNr       EQ ttRuckSackContents.iNr + 2
+      AND   ttThirdRuckSackContents.iPriority EQ ttRuckSackContents.iPriority:
+         FIND FIRST ttDouble
+         WHERE ttDouble.iNr EQ ttRuckSackContents.iNr
+         AND   ttDouble.iPriority EQ ttRuckSackContents.iPriority NO-ERROR.
+         IF NOT AVAILABLE ttDouble THEN DO:
+            CREATE ttDouble.
+            ASSIGN 
+               ttDouble.iNr       = ttRuckSackContents.iNr
+               ttDouble.iPriority = ttRuckSackContents.iPriority
+            .
+            iSolution = iSolution + ttDouble.iPriority.
+         END.
+      END.
+      
+      iCheckRuckSack = iCheckRuckSack + 3.
+   END. /* REPEAT */
+         
    OUTPUT TO "clipboard".
    PUT UNFORMATTED iSolution SKIP.
    OUTPUT CLOSE.
