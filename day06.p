@@ -101,7 +101,7 @@ DO iSub = 1 TO LENGTH (lcInput) - (iMax - 1):
       iSolution = iSub + (iMax - 1).
       LEAVE SearchBlock.
    END.
- END. /* SearchBlock */
+END. /* SearchBlock */
 
 IF lvlShow THEN DO:
 END.
