@@ -23,6 +23,7 @@ DataDigger/DataDigger*.log
 /debug/
 /log/
 /tmp/
+/output/
 
 
 # General files
