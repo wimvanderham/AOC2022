@@ -39,6 +39,7 @@ DEFINE VARIABLE cMessage     AS CHARACTER NO-UNDO.
 DEFINE VARIABLE lvlDebug     AS LOGICAL   NO-UNDO INITIAL FALSE.
 DEFINE VARIABLE lvlShow      AS LOGICAL   NO-UNDO INITIAL FALSE.
 DEFINE VARIABLE iPart        AS INTEGER   NO-UNDO.
+DEFINE VARIABLE iPair        AS INTEGER   NO-UNDO.
 
 /* Specific */
 DEFINE VARIABLE cLists   AS CHARACTER NO-UNDO EXTENT 2.
@@ -57,6 +58,20 @@ INDEX indSideLevel IS UNIQUE lLeft iLevel iSub.
 /* ********************  Preprocessor Definitions  ******************** */
    
 /* ************************  Function Prototypes ********************** */
+
+FUNCTION getNestedListElement RETURNS CHARACTER 
+   (INPUT ipiElement AS INTEGER,
+    INPUT ipcList    AS CHARACTER) FORWARD.
+
+FUNCTION getNestedListNumEntries RETURNS INTEGER 
+   (INPUT ipcList AS CHARACTER) FORWARD.
+
+FUNCTION isInteger RETURNS LOGICAL 
+   (INPUT ipcString AS CHARACTER) FORWARD.
+
+FUNCTION isOrdered RETURNS LOGICAL 
+   (INPUT ipcLeft  AS CHARACTER,
+    INPUT ipcRight AS CHARACTER) FORWARD.
 
 /* ***************************  Main Block  *************************** */
 DISPLAY
@@ -91,26 +106,42 @@ IF lvlDebug THEN DO:
    VIEW-AS ALERT-BOX.
 END.
 
+IF lvlShow THEN DO:
+   OUTPUT TO "output\13.txt".
+   PUT UNFORMATTED SKIP.
+   OUTPUT CLOSE.
+END. 
+   
 ASSIGN 
    iList     = 0
    iSolution = 0
+   iPair     = 0
 .
 ReadBlock:
 DO iLine = 1 TO NUM-ENTRIES (lcInput, "~n"):
    
    cLine = TRIM (ENTRY (iLine, lcInput, "~n")).
    IF cLine EQ "" THEN DO:
+      iPair = iPair + 1.
+      lOrdered = isOrdered(cLists[1], cLists[2]).
+      /*
       RUN checkLists
          (INPUT  cLists,
           OUTPUT lOrdered).
+      */
       IF lvlDebug THEN DO:
-         MESSAGE cLists[1] SKIP 
-         cLists[2] SKIP 
-         "Ordered?" lOrdered
-         VIEW-AS ALERT-BOX.
+      END.
+      IF lvlShow THEN DO:
+         IF lOrdered THEN DO:
+            OUTPUT TO "output\13.txt" APPEND.
+            PUT UNFORMATTED 
+            SUBSTITUTE ("&1 &2", iPair, cLists[1]) SKIP
+            SUBSTITUTE ("&1 &2", iPair, cLists[2]) SKIP.
+            OUTPUT CLOSE.
+         END.
       END.
       IF lOrdered THEN 
-         iSolution = iSolution + 1.
+         iSolution = iSolution + iPair.
       iList = 0.          
       NEXT ReadBlock.
    END.
@@ -181,199 +212,204 @@ END CATCH.
 
 /* **********************  Internal Procedures  *********************** */
 
-PROCEDURE checkLists:
-/*------------------------------------------------------------------------------
- Purpose:
- Notes:
-------------------------------------------------------------------------------*/
-DEFINE INPUT  PARAMETER ipcLists   AS CHARACTER NO-UNDO EXTENT 2.
-DEFINE OUTPUT PARAMETER oplOrdered AS LOGICAL   NO-UNDO.
-
-DEFINE VARIABLE iSide AS INTEGER   NO-UNDO.
-DEFINE VARIABLE iChar AS INTEGER   NO-UNDO.
-DEFINE VARIABLE cChar AS CHARACTER NO-UNDO.
-
-DEFINE VARIABLE iNewLevel AS INTEGER NO-UNDO.
-DEFINE VARIABLE iNewSub   AS INTEGER NO-UNDO.
-DEFINE VARIABLE lNewStart AS LOGICAL NO-UNDO.
-DEFINE VARIABLE lNewEnd   AS LOGICAL NO-UNDO.
-
-DEFINE BUFFER ttLeft  FOR ttList.
-DEFINE BUFFER ttRight FOR ttList.
-DEFINE BUFFER ttSub   FOR ttList.
-
-   EMPTY TEMP-TABLE ttList.
-   
-   DO iSide = 1 TO 2:
-      ASSIGN 
-         iNewLevel = 1
-         iNewSub   = 1
-         lNewStart = FALSE 
-         lNewEnd   = FALSE
-      .
-      CREATE ttList.
-      ASSIGN 
-         ttList.lLeft  = iSide EQ 1
-         ttList.iLevel = iNewLevel
-         ttList.iSub   = iNewSub
-         ttList.cList  = ipcLists[iSide]
-      .
-      
-      ParseList:
-      DO iChar = 1 TO LENGTH (ttList.cList):
-         cChar = SUBSTRING (ttList.cList, iChar, 1).
-         IF cChar EQ "[" THEN DO:
-            ASSIGN 
-               iNewLevel = iNewLevel + 1
-            .
-            FIND LAST ttSub
-            WHERE ttSub.lLeft  EQ ttList.lLeft
-            AND   ttSub.iLevel EQ iNewLevel NO-ERROR.
-            IF AVAILABLE ttSub THEN
-            DO:
-               iNewSub = ttSub.iSub + 1.
-            END.
-            ELSE DO:
-               iNewSub = 1.
-            END.
-            lNewStart = TRUE.
-            CREATE ttSub.
-            ASSIGN 
-               ttSub.lLeft  = ttList.lLeft
-               ttSub.iLevel = iNewLevel
-               ttSub.iSub   = iNewSub
-               ttSub.lStart = lNewStart
-            .
-            lNewStart = FALSE.
-            NEXT ParseList.
-         END.
-         IF cChar EQ "]" THEN DO:
-            /* Close current list */
-            ASSIGN 
-               lNewEnd = TRUE
-            .
-            FIND LAST ttSub
-            WHERE ttSub.lLeft  EQ ttList.lLeft
-            AND   ttSub.iLevel EQ iNewLevel 
-            AND   ttSub.lStart EQ TRUE NO-ERROR.
-            IF AVAILABLE ttSub THEN
-            DO:
-               FIND  ttSub
-               WHERE ttSub.lLeft  EQ ttList.lLeft
-               AND   ttSub.iLevel EQ iNewLevel
-               AND   ttSub.iSub   EQ iNewSub NO-ERROR.
-               IF AVAILABLE ttSub THEN
-               DO:
-                  ASSIGN
-                     ttSub.lEnd = lNewEnd
-                     lNewEnd    = FALSE
-                  .
-               END.
-            END.
-            iNewLevel = iNewLevel - 1.
-            
-            FIND LAST ttSub
-            WHERE ttSub.lLeft  EQ ttList.lLeft
-            AND   ttSub.iLevel EQ iNewLevel NO-ERROR.
-            IF AVAILABLE ttSub THEN
-            DO:
-               iNewSub = ttSub.iSub + 1.
-            END.
-            ELSE DO:
-               iNewSub = 1.
-            END.
-            NEXT ParseList.
-         END.
-         IF cChar EQ "," THEN
-         DO:
-            iNewSub = iNewSub + 1.
-            NEXT ParseList.
-         END.
-         FIND ttSub
-         WHERE ttSub.lLeft  EQ ttList.lLeft
-         AND   ttSub.iLevel EQ iNewLevel
-         AND   ttSub.iSub   EQ iNewSub NO-ERROR.
-         IF NOT AVAILABLE ttSub THEN DO:
-            CREATE ttSub.
-            ASSIGN 
-               ttSub.lLeft  = ttList.lLeft
-               ttSub.iLevel = iNewLevel
-               ttSub.iSub   = iNewSub
-               ttSub.lStart = lNewStart
-            .
-            lNewStart = FALSE.
-         END.
-         ASSIGN 
-            ttSub.cList = ttSub.cList + cChar
-            ttSub.lEnd  = lNewEnd
-         .
-         lNewEnd = FALSE.
-         
-      END.
-   END.
-
-   /* Fix mixed types by increasing level */
-   /* First left side non-lists */
-   FOR EACH ttLeft
-   WHERE ttLeft.lLeft EQ TRUE
-   AND   ttLeft.iLevel GT 1
-   BREAK
-   BY ttLeft.iLevel DESCENDING:
-      FIND FIRST ttRight
-      WHERE ttRight.lLeft  EQ FALSE
-      AND   ttRight.iLevel EQ ttLeft.iLevel NO-ERROR.
-      IF NOT AVAILABLE ttRight THEN
-      DO:
-         ttLeft.iLevel = ttLeft.iLevel + 1.
-      END.
-   END.
-   
-   /* Then right side non-lists */
-   FOR EACH ttRight
-   WHERE ttRight.lLeft  EQ FALSE 
-   AND   ttRight.iLevel GT 1
-   BREAK
-   BY ttRight.iLevel DESCENDING:
-      FIND FIRST ttLeft
-      WHERE ttLeft.lLeft  EQ TRUE
-      AND   ttLeft.iLevel EQ ttRight.iLevel NO-ERROR.
-      IF NOT AVAILABLE ttLeft THEN
-      DO:
-         ttRight.iLevel = ttRight.iLevel + 1.
-      END.
-   END.
-   
-   oplOrdered = TRUE.
-   CheckBlock:
-   FOR EACH ttLeft
-   WHERE ttLeft.lLeft  EQ TRUE
-   AND   ttLeft.iLevel GT 1
-   BREAK
-   BY ttLeft.iLevel DESCENDING
-   BY ttLeft.iSub:
-   
-      FIND  ttRight
-      WHERE ttRight.lLeft  EQ FALSE 
-      AND   ttRight.iLevel EQ ttLeft.iLevel
-      AND   ttRight.iSub   EQ ttLeft.iSub NO-ERROR.
-      IF NOT AVAILABLE ttRight THEN
-      DO:
-         oplOrdered = FALSE.
-         LEAVE CheckBlock.
-      END.
-      IF AVAILABLE ttRight THEN
-      DO:
-         IF INTEGER(ttLeft.cList) NE INTEGER(ttRight.cList) THEN
-         DO:
-            IF INTEGER(ttLeft.cList) GT INTEGER(ttRight.cList) THEN
-            DO:
-               oplOrdered = FALSE.
-            END.
-            LEAVE CheckBlock.            
-         END.
-      END.
-   END.
-   
-END PROCEDURE.
    
 /* ************************  Function Implementations ***************** */
+
+FUNCTION getNestedListElement RETURNS CHARACTER 
+   (INPUT ipiElement    AS INTEGER,
+    INPUT ipcNestedList AS CHARACTER):
+/*------------------------------------------------------------------------------
+ Purpose: Returns the nth element of a nested list
+ Notes:   A nested list is a list [] that can contain sub lists like e.g. [[1,2],[3,4]]
+          The function call expects in input the INTERNAL of a NestedList,
+          iow, strip off the beginning [ and ending ] before calling this function
+ Based on: ENTRY ( iElement , cList[ , character ] )
+------------------------------------------------------------------------------*/   
+DEFINE VARIABLE iNumEntries AS INTEGER   NO-UNDO.
+DEFINE VARIABLE iChar       AS INTEGER   NO-UNDO.
+DEFINE VARIABLE cChar       AS CHARACTER NO-UNDO.
+DEFINE VARIABLE iOpen       AS INTEGER   NO-UNDO.
+DEFINE VARIABLE cElement    AS CHARACTER NO-UNDO.
+
+   IF ipcNestedList EQ "" THEN 
+      RETURN "".
+   ELSE 
+      iNumEntries = 1.
+      
+   CharBlock:
+   DO iChar = 1 TO LENGTH (ipcNestedList):
+      cChar = SUBSTRING (ipcNestedList, iChar, 1).
+      IF cChar EQ "[" THEN 
+         iOpen = iOpen + 1.
+      IF cChar EQ "]" THEN
+         iOpen = iOpen - 1.
+
+      IF cChar EQ "," THEN DO:
+         IF iOpen EQ 0 THEN DO:
+            /* Only count if not a sub list*/
+            iNumEntries = iNumEntries + 1.
+            NEXT CharBlock.
+         END.
+      END.
+
+      IF ipiElement EQ iNumEntries THEN DO:
+         cElement = SUBSTITUTE ("&1&2", cElement, cChar).
+      END.
+   END.
+      
+   RETURN cElement.      
+
+      
+END FUNCTION.
+
+FUNCTION getNestedListNumEntries RETURNS INTEGER 
+   (INPUT ipcNestedList AS CHARACTER):
+/*------------------------------------------------------------------------------
+ Purpose: Returns the number of elements in a nested list
+ Notes:   A nested list is a list [] with sub lists like e.g. [[],[]]
+          This function expects the stripped Nested list in input,
+          iow words without the leading [ and trailing ]
+------------------------------------------------------------------------------*/   
+DEFINE VARIABLE iNumEntries AS INTEGER   NO-UNDO.
+DEFINE VARIABLE iChar       AS INTEGER   NO-UNDO.
+DEFINE VARIABLE cChar       AS CHARACTER NO-UNDO.
+DEFINE VARIABLE iOpen       AS INTEGER   NO-UNDO.
+
+   IF ipcNestedList EQ "" THEN
+      RETURN 0.
+   ELSE
+      iNumEntries = 1.
+      
+   DO iChar = 1 TO LENGTH (ipcNestedList):
+      cChar = SUBSTRING (ipcNestedList, iChar, 1).
+      IF cChar EQ "[" THEN 
+         /* Keep track of nested lists */
+         iOpen = iOpen + 1.
+      IF cChar EQ "]" THEN
+         /* Keep track of nested lists */
+         iOpen = iOpen - 1.
+      IF cChar EQ "," THEN DO:
+         IF iOpen EQ 0 THEN
+            /* Only count if not a sub list*/
+            iNumEntries = iNumEntries + 1.
+      END.
+   END.
+   
+   RETURN iNumEntries.   
+END FUNCTION.
+
+FUNCTION isInteger RETURNS LOGICAL 
+   (INPUT ipcString AS CHARACTER):
+/*------------------------------------------------------------------------------
+ Purpose: Determines if the string in input is an integer
+ Notes:   Should only contain numbers 0-9
+------------------------------------------------------------------------------*/   
+DEFINE VARIABLE lInteger AS LOGICAL   NO-UNDO.
+DEFINE VARIABLE iChar    AS INTEGER   NO-UNDO.
+DEFINE VARIABLE cChar    AS CHARACTER NO-UNDO.
+
+   lInteger = TRUE.
+   
+   CheckBlock:
+   DO iChar = 1 TO LENGTH (ipcString):
+      cChar = SUBSTRING (ipcString, iChar, 1).
+      IF cChar LT "0" OR cChar GT "9" THEN DO: 
+         lInteger = FALSE.
+         LEAVE CheckBlock.
+      END.
+   END.
+   
+   RETURN lInteger.
+      
+END FUNCTION.
+
+FUNCTION isOrdered RETURNS LOGICAL 
+   (INPUT ipcLeft  AS CHARACTER,
+    INPUT ipcRight AS CHARACTER):
+/*------------------------------------------------------------------------------
+ Purpose: Determine if two inputs (Left & Right) are ordered
+ Notes:
+------------------------------------------------------------------------------*/   
+DEFINE VARIABLE iLeft         AS INTEGER   NO-UNDO.
+DEFINE VARIABLE iRight        AS INTEGER   NO-UNDO.
+DEFINE VARIABLE cLeftElement  AS CHARACTER NO-UNDO.
+DEFINE VARIABLE cRightElement AS CHARACTER NO-UNDO.
+
+DEFINE VARIABLE iLeftChar        AS INTEGER   NO-UNDO.
+DEFINE VARIABLE iRightChar       AS INTEGER   NO-UNDO.
+DEFINE VARIABLE cLeftChar        AS CHARACTER NO-UNDO.
+DEFINE VARIABLE cRightChar       AS CHARACTER NO-UNDO.
+DEFINE VARIABLE iLeftInteger     AS INTEGER   NO-UNDO.
+DEFINE VARIABLE iRightInteger    AS INTEGER   NO-UNDO.
+DEFINE VARIABLE iNumEntriesLeft  AS INTEGER   NO-UNDO.
+DEFINE VARIABLE iNumEntriesRight AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lOrdered         AS LOGICAL   NO-UNDO.
+DEFINE VARIABLE iElement         AS INTEGER   NO-UNDO.
+
+   IF ipcLeft BEGINS "[" AND ipcRight BEGINS "[" THEN DO:
+      /* Two lists in Input */
+      ASSIGN
+         /* Strip off heading [ and trailing ] */ 
+         ipcLeft  = SUBSTRING (ipcLeft,  2, LENGTH (ipcLeft)  - 2)
+         ipcRight = SUBSTRING (ipcRight, 2, LENGTH (ipcRight) - 2)
+      .
+      ASSIGN 
+         iNumEntriesLeft  = getNestedListNumEntries(ipcLeft)
+         iNumEntriesRight = getNestedListNumEntries(ipcRight)
+      .
+      iElement = 1.
+      DO WHILE iElement LE iNumEntriesLeft
+      AND iElement LE iNumEntriesRight:
+         ASSIGN 
+            cLeftElement  = getNestedListElement(iElement, ipcLeft)
+            cRightElement = getNestedListElement(iElement, ipcRight)
+         .
+         lOrdered = isOrdered(cLeftElement, cRightElement).
+         IF lOrdered EQ TRUE THEN DO:
+            RETURN TRUE.
+         END.
+         ELSE IF lOrdered EQ FALSE THEN DO:
+            RETURN FALSE.
+         END.
+         ELSE DO:
+            iElement = iElement + 1.
+         END.
+      END. 
+         
+      IF iNumEntriesLeft LT iNumEntriesRight THEN DO:
+         RETURN TRUE.
+      END.
+      ELSE DO: 
+         IF iNumEntriesLeft GT iNumEntriesRight THEN DO:
+            RETURN FALSE.
+         END.
+      END.
+      
+      /* No differences found, continue checking rest of input */
+      RETURN ?.
+   END.
+   ELSE DO:
+      IF isInteger(ipcLeft) AND isInteger(ipcRight) THEN DO:
+         IF INTEGER (ipcLeft) LT INTEGER (ipcRight) THEN DO:
+            RETURN TRUE.
+         END.
+         ELSE IF INTEGER (ipcLeft) GT INTEGER (ipcRight) THEN DO:
+            RETURN FALSE.
+         END.
+         ELSE DO:
+            RETURN ?.
+         END.
+      END.
+      ELSE DO:
+         IF isInteger(ipcLeft) AND ipcRight BEGINS "[" THEN DO:
+            RETURN isOrdered (SUBSTITUTE ("[&1]", ipcLeft), ipcRight).
+         END.
+         ELSE DO:
+            IF ipcLeft BEGINS "[" AND isInteger(ipcRight) THEN DO:
+               RETURN isOrdered (ipcLeft, SUBSTITUTE ("[&1]", ipcRight)).
+            END.
+         END.
+      END.
+   END.
+            
+END FUNCTION.
