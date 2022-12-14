@@ -42,19 +42,28 @@ DEFINE VARIABLE iPart        AS INTEGER   NO-UNDO.
 DEFINE VARIABLE iPair        AS INTEGER   NO-UNDO.
 
 /* Specific */
-DEFINE VARIABLE cLists   AS CHARACTER NO-UNDO EXTENT 2.
-DEFINE VARIABLE iList    AS INTEGER   NO-UNDO.
-DEFINE VARIABLE lOrdered AS LOGICAL   NO-UNDO.
+DEFINE VARIABLE cLists      AS CHARACTER NO-UNDO EXTENT 2.
+DEFINE VARIABLE iList       AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lOrdered    AS LOGICAL   NO-UNDO.
+DEFINE VARIABLE iNewOrder   AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lSwitch     AS LOGICAL   NO-UNDO.
+DEFINE VARIABLE iStartOrder AS INTEGER   NO-UNDO.
 
-DEFINE TEMP-TABLE ttList
-   FIELD lLeft  AS LOGICAL 
-   FIELD iLevel AS INTEGER 
-   FIELD iSub   AS INTEGER 
-   FIELD lStart AS LOGICAL
-   FIELD cList  AS CHARACTER FORMAT "X(50)"
-   FIELD lEnd   AS LOGICAL
-INDEX indSideLevel IS UNIQUE lLeft iLevel iSub.
+DEFINE TEMP-TABLE ttPacket
+   FIELD iNr         AS INTEGER 
+   FIELD cPacket     AS CHARACTER
+   FIELD iOrder      AS INTEGER  
+INDEX indNr    IS UNIQUE iNr
+INDEX indOrder iOrder.
+ 
+DEFINE BUFFER ttNextPacket FOR ttPacket.
 
+DEFINE TEMP-TABLE ttCompare
+   FIELD cLeft  AS CHARACTER 
+   FIELD cRight AS CHARACTER 
+   FIELD isOrdered AS LOGICAL
+INDEX indLeftRight IS UNIQUE cLeft cRight.
+ 
 /* ********************  Preprocessor Definitions  ******************** */
    
 /* ************************  Function Prototypes ********************** */
@@ -123,7 +132,18 @@ DO iLine = 1 TO NUM-ENTRIES (lcInput, "~n"):
    cLine = TRIM (ENTRY (iLine, lcInput, "~n")).
    IF cLine EQ "" THEN DO:
       iPair = iPair + 1.
-      lOrdered = isOrdered(cLists[1], cLists[2]).
+      FIND ttCompare
+      WHERE ttCompare.cLeft  EQ cLists[1]
+      AND   ttCompare.cRight EQ cLists[2] NO-ERROR.
+      IF NOT AVAILABLE ttCompare THEN DO:
+         CREATE ttCompare.
+         ASSIGN 
+            ttCompare.cLeft     = cLists[1]
+            ttCompare.cRight    = cLists[2]
+            ttCompare.isOrdered = isOrdered(ttCompare.cLeft, ttCompare.cRight)
+         .
+      END.
+      lOrdered = ttCompare.isOrdered.
       /*
       RUN checkLists
          (INPUT  cLists,
@@ -145,6 +165,12 @@ DO iLine = 1 TO NUM-ENTRIES (lcInput, "~n"):
       iList = 0.          
       NEXT ReadBlock.
    END.
+
+   CREATE ttPacket.
+   ASSIGN 
+      ttPacket.iNr     = iLine
+      ttPacket.cPacket = cLine
+   .
 
    iList = iList + 1.
    ASSIGN 
@@ -172,9 +198,109 @@ END. /* Process Part One */
 
 IF lPart[2] THEN DO:
    /* Process Part Two */
-   iSolution = 0.
+   CREATE ttPacket.
+   ASSIGN 
+      ttPacket.iNr = iLine + 1
+      ttPacket.cPacket = "[[2]]"
+   .
+   CREATE ttPacket.
+   ASSIGN 
+      ttPacket.iNr = iLine + 2
+      ttPacket.cPacket = "[[6]]"
+   .
    
-          
+   IF lvlShow THEN DO:
+      OUTPUT TO "output\13.txt" APPEND UNBUFFERED.
+   END.
+         
+   /* Initialize Ordering */
+   FOR EACH ttPacket
+   BY TRIM (ttPacket.cPacket, "["):
+      ACCUM "" (COUNT).
+      ttPacket.iOrder = (ACCUM COUNT "").
+      IF lvlShow THEN DO:
+         PUT UNFORMATTED
+         SUBSTITUTE ("&1. &2", ttPacket.iOrder, ttPacket.cPacket) SKIP.
+      END.
+   END.
+      
+   iStartOrder = 1.
+   OrderBlock:
+   REPEAT:
+      /* OrderBlock */
+      lSwitch = FALSE.
+      PacketBlock:
+      REPEAT:
+         FIND FIRST ttPacket
+         WHERE ttPacket.iOrder EQ iStartOrder NO-ERROR.
+         IF NOT AVAILABLE ttPacket THEN DO:
+            LEAVE OrderBlock.
+         END.
+         FIND FIRST ttNextPacket
+         WHERE ttNextPacket.iOrder GT ttPacket.iOrder NO-ERROR.
+         DO WHILE AVAILABLE ttNextPacket:
+            FIND ttCompare
+            WHERE ttCompare.cLeft  EQ ttPacket.cPacket
+            AND   ttCompare.cRight EQ ttNextPacket.cPacket NO-ERROR.
+            IF NOT AVAILABLE ttCompare THEN DO:
+               CREATE ttCompare.
+               ASSIGN 
+                  ttCompare.cLeft     = ttPacket.cPacket
+                  ttCompare.cRight    = ttNextPacket.cPacket
+                  ttCompare.isOrdered = isOrdered(ttCompare.cLeft, ttCompare.cRight)
+               .
+                           
+            END.
+            lOrdered = ttCompare.isOrdered.
+            IF lvlShow THEN DO:
+               PUT UNFORMATTED 
+               SUBSTITUTE ("&1. &2 vs &3. &4 ==> &5",
+                           ttPacket.iOrder,
+                           ttPacket.cPacket,
+                           ttNextPacket.iOrder,
+                           ttNextPacket.cPacket,
+                           STRING(lOrdered, "Ordered/NOT Ordered")) SKIP.
+            END.                         
+            IF lOrdered EQ FALSE THEN DO:
+               ASSIGN 
+                  lSwitch             = TRUE 
+                  iNewOrder           = ttNextPacket.iOrder
+                  ttNextPacket.iOrder = ttPacket.iOrder
+                  ttPacket.iOrder     = iNewOrder
+               .
+               NEXT OrderBlock.
+            END.
+            FIND  ttPacket 
+            WHERE ttPacket.iNr EQ ttNextPacket.iNr.
+            FIND  FIRST ttNextPacket
+            WHERE ttNextPacket.iOrder GT ttPacket.iOrder NO-ERROR.
+         END.
+         IF lSwitch EQ FALSE THEN 
+            LEAVE PacketBlock.    
+      END. /* PacketBlock */
+      IF lSwitch = FALSE THEN DO:
+         iStartOrder = iStartOrder + 1.
+      END.
+   END. /* OrderBlock */
+   
+   IF lvlShow THEN DO:
+      OUTPUT CLOSE.
+   END.
+   
+   IF lvlDebug THEN DO:
+      MESSAGE "Final Order"
+      VIEW-AS ALERT-BOX.
+      RUN sy\win\wbrowsett.w
+         (INPUT TEMP-TABLE ttPacket:HANDLE).     
+   END.
+      
+   iSolution = 1.
+   FOR EACH ttPacket
+   WHERE ttPacket.cPacket EQ "[[2]]"
+   OR    ttPacket.cPacket EQ "[[6]]":
+      iSolution = iSolution * ttPacket.iOrder.
+   END.
+   
    OUTPUT TO "clipboard".
    PUT UNFORMATTED iSolution SKIP.
    OUTPUT CLOSE.
