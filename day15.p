@@ -45,9 +45,17 @@ DEFINE VARIABLE iPair        AS INTEGER   NO-UNDO.
 DEFINE VARIABLE iNewNr        AS INTEGER NO-UNDO.
 DEFINE VARIABLE iNewManhattan AS INTEGER NO-UNDO.
 DEFINE VARIABLE iNewY         AS INTEGER NO-UNDO.
-DEFINE VARIABLE iDeltaX       AS INTEGER NO-UNDO.
-DEFINE VARIABLE iMovePoint    AS INTEGER NO-UNDO.
 DEFINE VARIABLE lConcat       AS LOGICAL NO-UNDO.
+DEFINE VARIABLE iMaxX         AS INTEGER NO-UNDO INITIAL 4000000.
+DEFINE VARIABLE iMaxY         AS INTEGER NO-UNDO INITIAL 4000000.
+DEFINE VARIABLE iCheckX       AS INTEGER NO-UNDO.
+DEFINE VARIABLE iCheckY       AS INTEGER NO-UNDO.
+DEFINE VARIABLE iQuadrant     AS INTEGER NO-UNDO.
+DEFINE VARIABLE iDeltaX       AS INTEGER NO-UNDO.
+DEFINE VARIABLE iDeltaY       AS INTEGER NO-UNDO.
+DEFINE VARIABLE iCheck        AS INTEGER NO-UNDO.
+DEFINE VARIABLE lScanned      AS LOGICAL NO-UNDO.
+DEFINE VARIABLE iDistance     AS INTEGER NO-UNDO.
 
 DEFINE TEMP-TABLE ttSensor
    FIELD iNr        AS INTEGER 
@@ -57,6 +65,8 @@ DEFINE TEMP-TABLE ttSensor
    FIELD iBeaconY   AS INTEGER 
    FIELD iManhattan AS INTEGER 
 INDEX indNr IS UNIQUE iNr.
+
+DEFINE BUFFER ttNextSensor FOR ttSensor.
 
 DEFINE TEMP-TABLE ttRange
    FIELD iNr    AS INTEGER 
@@ -137,10 +147,12 @@ END.
 
 IF lPart[1] THEN DO:
    /* Process Part One */
-   IF lvlDebug THEN 
+   IF lvlDebug THEN DO:
       iNewY = 10.
-   ELSE 
+   END.
+   ELSE DO: 
       iNewY = 2000000.
+   END.
       
    iSolution = 0.
    FOR EACH ttSensor:
@@ -249,7 +261,134 @@ END. /* Process Part One */
 
 IF lPart[2] THEN DO:
    /* Process Part Two */
+   IF lvlDebug THEN DO:
+      iMaxX = 20.
+      iMaxY = 20.
+   END.
    
+   IF lvlShow THEN DO:
+      OUTPUT TO "output\15.txt".
+      PUT UNFORMATTED 
+      SUBSTITUTE ("Start &1", STRING (NOW, "99-99-9999 HH:MM:SS")) SKIP
+      "Input:" SKIP  
+      STRING (lcInput) SKIP.
+      FOR EACH ttSensor:
+         DISPLAY 
+         ttSensor
+         WITH STREAM-IO.
+      END.
+      OUTPUT CLOSE.
+   END.
+   
+   /* Search for the "lost" Beacon */
+   IF lvlShow THEN DO:
+      OUTPUT TO "output\15.txt" APPEND UNBUFFERED.
+   END.
+   
+   SensorBlock:
+   FOR EACH ttSensor:
+      /* FOR EACH ttSensor: */
+      ASSIGN 
+         iCheckX = ttSensor.iX + ttSensor.iManhattan + 1
+         iCheckY = ttSensor.iY
+      .
+      DO iQuadrant = 1 TO 4:
+         /* Move in Quadrants as DeltaX and DeltaY change when the Quadrant changes */
+         IF lvlShow THEN DO:
+            PUT UNFORMATTED 
+            "Nr.   Sensor iX   Sensor iY     Check X     Check Y Nr.     Next iX     Next iY Result" SKIP 
+            "--- ----------- ----------- ----------- ----------- --- ----------- ----------- -----------------------------" SKIP. 
+         END.
+                  
+         CASE iQuadrant:
+            WHEN 1 THEN 
+               ASSIGN 
+                  iDeltaX = -1
+                  iDeltaY = -1
+               .
+            WHEN 2 THEN 
+               ASSIGN 
+                  iDeltaX = -1
+                  iDeltaY = +1
+               .
+            WHEN 3 THEN
+               ASSIGN 
+                  iDeltaX = +1
+                  iDeltaY = -1
+               .
+            WHEN 4 THEN 
+               ASSIGN 
+                  iDeltaX = +1
+                  iDeltaY = +1
+               .
+         END CASE.
+
+         IF lvlShow THEN DO:
+            PUT UNFORMATTED 
+            SUBSTITUTE ("&1. &2 &3 &4 &5",
+                       STRING (ttSensor.iNr, "99"),
+                       STRING (ttSensor.iX, "->>,>>>,>>9"),
+                       STRING (ttSensor.iY, "->>,>>>,>>9"),
+                       STRING (iCheckX, "->>,>>>,>>9"),
+                       STRING (iCheckY, "->>,>>>,>>9")) SKIP.
+         END.
+                     
+         DO iCheck = 1 TO ttSensor.iManhattan + 1:
+            /* Traverse external border of Quadrant */
+            /* The external border is 1 step longer than sensor border */
+            lScanned = FALSE.
+            CheckSensors:
+            FOR EACH ttNextSensor
+            WHERE ttNextSensor.iNr NE ttSensor.iNr:
+               iDistance = ABSOLUTE (iCheckX - ttNextSensor.iX) + 
+                           ABSOLUTE (iCheckY - ttNextSensor.iY).
+               IF iDistance LE ttNextSensor.iManhattan THEN
+                  lScanned = TRUE.
+               IF lvlShow THEN DO:
+                  PUT UNFORMATTED 
+                  SUBSTITUTE ("&1. &2 &3 &4 &5 &6. &7 &8 &9",
+                             STRING (ttSensor.iNr, "99"),
+                             STRING (ttSensor.iX, "->>,>>>,>>9"),
+                             STRING (ttSensor.iY, "->>,>>>,>>9"),
+                             STRING (iCheckX, "->>,>>>,>>9"),
+                             STRING (iCheckY, "->>,>>>,>>9"),
+                             STRING (ttNextSensor.iNr, "99"),
+                             STRING (ttNextSensor.iX, "->>,>>>,>>9"),
+                             STRING (ttNextSensor.iY, "->>,>>>,>>9"),
+                             SUBSTITUTE ("Distance &1 &4 &2: &3",
+                                        iDistance,
+                                        ttNextSensor.iManhattan,
+                                        STRING (lScanned, "Scanned/Not Scanned"),
+                                        STRING (iDistance LE ttNextSensor.iManhattan, "LE/GT"))) SKIP.
+               END.
+               IF lScanned THEN 
+                  LEAVE CheckSensors.
+            END.
+            
+            IF lScanned EQ FALSE 
+            AND iCheckX GE 0 AND iCheckX LE iMaxX
+            AND iCheckY GE 0 AND iCheckY LE iMaxY THEN DO:
+               /* Check Point *not* scanned and inside the borders */
+               iSolution = iCheckX * 4000000 + iCheckY.
+               IF lvlShow THEN DO:
+                  PUT UNFORMATTED 
+                  SUBSTITUTE ("--> Solution: &1 (&2,&3)", iSolution, iCheckX, iCheckY) SKIP.
+               END.
+               LEAVE SensorBlock.
+            END. /* Check Point *not* scanned and inside the borders */
+               
+            ASSIGN 
+               iCheckX = iCheckX + iDeltaX
+               iCheckY = iCheckY + iDeltaY
+            .
+         END. /* Traverse external border of Quadrant */ 
+      END. /* Move in Quadrants as DeltaX and DeltaY change when the Quadrant changes */
+   END. /* SensorBlock: FOR EACH ttSensor: */
+    
+   IF lvlShow THEN DO:
+      OUTPUT CLOSE.
+   END.
+    
    OUTPUT TO "clipboard".
    PUT UNFORMATTED iSolution SKIP.
    OUTPUT CLOSE.
