@@ -47,6 +47,7 @@ DEFINE VARIABLE iNewManhattan AS INTEGER NO-UNDO.
 DEFINE VARIABLE iNewY         AS INTEGER NO-UNDO.
 DEFINE VARIABLE iDeltaX       AS INTEGER NO-UNDO.
 DEFINE VARIABLE iMovePoint    AS INTEGER NO-UNDO.
+DEFINE VARIABLE lConcat       AS LOGICAL NO-UNDO.
 
 DEFINE TEMP-TABLE ttSensor
    FIELD iNr        AS INTEGER 
@@ -190,6 +191,28 @@ IF lPart[1] THEN DO:
       END. /* FOR EACH ttNextRange */
    END. /* FOR EACH ttRange: */
 
+   IF lvlShow THEN DO:
+      RUN sy\win\wbrowsett.w
+         (INPUT TEMP-TABLE ttRange:HANDLE).
+   END.
+
+   ConcatBlock:
+   REPEAT:
+      lConcat = FALSE.
+      FOR EACH ttRange:
+         FIND  ttNextRange
+         WHERE ttNextRange.iFromX EQ ttRange.iToX + 1 NO-ERROR.
+         IF AVAILABLE ttNextRange THEN DO:
+            ttRange.iToX = ttNextRange.iToX.
+            DELETE ttNextRange.
+            lConcat = TRUE.
+            NEXT ConcatBlock.
+         END.
+      END.
+      IF lConcat EQ FALSE THEN 
+         LEAVE ConcatBlock.
+   END.
+   
    IF lvlShow THEN DO:
       RUN sy\win\wbrowsett.w
          (INPUT TEMP-TABLE ttRange:HANDLE).
