@@ -161,6 +161,34 @@ DO iLine = 1 TO NUM-ENTRIES (lcInput, "~n"):
       
 END. /* ReadBlock: */
 
+IF lvlShow THEN DO:
+   OUTPUT TO "output\18.txt".
+   FOR EACH ttPoint:
+      PUT UNFORMATTED 
+      SUBSTITUTE ("cube (&1|&2|&3 1)", 
+                  ttPoint.iPointX, 
+                  ttPoint.iPointY,
+                  ttPoint.iPointZ) SKIP.
+   END.
+   OUTPUT CLOSE.
+   
+   OUTPUT TO "output\18_data.js".
+   PUT UNFORMATTED 
+      "let data = `".
+   FOR EACH ttPoint:
+      ACCUM "" (COUNT).
+      IF (ACCUM COUNT "") GT 1 THEN 
+         PUT UNFORMATTED SKIP.
+      PUT UNFORMATTED 
+         SUBSTITUTE ("&1,&2,&3",
+                     ttPoint.iPointX,
+                     ttPoint.iPointY,
+                     ttPoint.iPointZ).
+   END.
+   PUT UNFORMATTED "`" SKIP.
+   OUTPUT CLOSE.                             
+END.                     
+
 IF lPart[1] THEN DO:
    /* Process Part One */
    IF lvlDebug THEN DO:
