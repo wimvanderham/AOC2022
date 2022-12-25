@@ -126,9 +126,6 @@ IF lPart[1] THEN DO:
    
    cSolution = getSNAFU(iSolution).
    
-   MESSAGE 
-   cSolution
-   VIEW-AS ALERT-BOX.
 END.
 
           
@@ -267,6 +264,7 @@ DEFINE VARIABLE iDiff     AS INT64     NO-UNDO.
       VIEW-AS ALERT-BOX.
 
    DO iChar = 2 TO LENGTH (cSNAFU):
+      /* Assign subsequent characters */
       ASSIGN
          iDiff = ?
       .      
@@ -296,11 +294,12 @@ DEFINE VARIABLE iDiff     AS INT64     NO-UNDO.
             END.
          END.
 
-         IF ipiDecimal EQ getDecimal(cSNAFU) THEN
-            RETURN cSNAFU.
       END.
+
       SUBSTRING (cSNAFU, iChar) = cScelta.
-   END.
+      IF ipiDecimal EQ getDecimal(cSNAFU) THEN
+         RETURN cSNAFU.
+   END. /* Assign subsequent characters */
                
    RETURN cSNAFU.
    
