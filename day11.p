@@ -151,9 +151,15 @@ DO iLine = 1 TO NUM-ENTRIES (lcInput, "~n"):
    
 END. /* ReadBlock: */
 
-iLCM = 1.
-FOR EACH ttMonkey:
-   iLCM = iLCM * ttMonkey.iDivisible.
+IF lPart[2] THEN DO:
+   /* For Part Two we need to reduce the huge numbers by 
+   ** only taking the remainder division by the LCM 
+   ** (which is the product of all divisors
+   */
+   iLCM = 1.
+   FOR EACH ttMonkey:
+      iLCM = iLCM * ttMonkey.iDivisible.
+   END.
 END.
 
 IF lvlShow THEN DO:
@@ -183,7 +189,8 @@ REPEAT:
          IF lPart[1] THEN 
             iItem = INT64 (TRUNCATE (iItem / 3, 0)).
 
-         IF lPart[2] THEN 
+         IF lPart[2] THEN
+            /* Take the signficant and throw away the multiple(s) of LCM */
             iItem = iItem MOD iLCM.
             
          IF iItem MOD ttMonkey.iDivisible EQ 0 THEN
