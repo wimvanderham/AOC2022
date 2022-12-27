@@ -45,28 +45,28 @@ DEFINE VARIABLE cPair        AS CHARACTER NO-UNDO.
 
 /* Specific */
 DEFINE TEMP-TABLE ttValve
-   FIELD cValve     AS CHARACTER 
-   FIELD iFlowRate  AS INTEGER
-   FIELD cValveList AS CHARACTER FORMAT "X(20)"
-   FIELD iStep      AS INTEGER 
+   FIELD cValve     AS CHARACTER FORMAT "X(2)"  LABEL "Valve"
+   FIELD iFlowRate  AS INTEGER   FORMAT "z9"    LABEL "Flow Rate"
+   FIELD cValveList AS CHARACTER FORMAT "X(20)" LABEL "Neighbors List"
+   FIELD iStep      AS INTEGER                  LABEL "Temporary Step Distance"
 INDEX indValve IS UNIQUE cValve.
 
 DEFINE BUFFER ttStartValve FOR ttValve.
 DEFINE BUFFER ttNewValve   FOR ttValve.
 
 DEFINE TEMP-TABLE ttPath
-   FIELD cFromValve AS CHARACTER 
-   FIELD cToValve   AS CHARACTER
-   FIELD iMinutes   AS INTEGER  
+   FIELD cFromValve AS CHARACTER FORMAT "X(2)" LABEL "From"
+   FIELD cToValve   AS CHARACTER FORMAT "X(2)" LABEL "To"
+   FIELD iMinutes   AS INTEGER   FORMAT "zz9"  LABEL "Minutes"
 INDEX indPath IS UNIQUE cFromValve cToValve.
 
 DEFINE BUFFER ttNewPath FOR ttPath.
 
 DEFINE TEMP-TABLE ttVisited
-   FIELD cValve        AS CHARACTER 
-   FIELD iTimeLeft     AS INTEGER 
-   FIELD cOpenSwitches AS CHARACTER 
-   FIELD iMaxValue     AS INTEGER 
+   FIELD cValve        AS CHARACTER FORMAT "X(2)"  LABEL "Valve"
+   FIELD iTimeLeft     AS INTEGER   FORMAT "z9"    LABEL "Minutes Left"
+   FIELD cOpenSwitches AS CHARACTER FORMAT "X(55)" LABEL "Open Valves (Switches)"
+   FIELD iMaxValue     AS INTEGER   FORMAT "z,zz9" LABEL "Maximum Value"
 INDEX indValveTimeOpen IS UNIQUE cValve iTimeLeft cOpenSwitches.
 
 DEFINE VARIABLE iValve          AS INTEGER   NO-UNDO.
@@ -350,7 +350,7 @@ CATCH oError AS Progress.Lang.Error :
    END.
    
    MESSAGE "Error!" SKIP (1)
-   SUBSTITUTE ("At line #: &1: &2", iLine, cLine) SKIP
+   SUBSTITUTE ("At line #: &1: &2", iLine, cLine) SKIP(3)
    cErrorMessage SKIP(1) 
    VIEW-AS ALERT-BOX ERROR.
 
