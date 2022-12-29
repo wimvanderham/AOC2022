@@ -136,9 +136,11 @@ COPY-LOB FROM FILE "input\16.txt" TO OBJECT lcInput.
 
 IF lvlDebug THEN DO:
    COPY-LOB FROM FILE "input\16_test.txt" TO OBJECT lcInput.
-   MESSAGE "Debug Input:" SKIP(1) 
-   STRING (lcInput)
-   VIEW-AS ALERT-BOX.
+   IF lvlShow THEN DO:
+      MESSAGE "Debug Input:" SKIP(1) 
+      STRING (lcInput)
+      VIEW-AS ALERT-BOX.
+   END.
 END.
 
 ReadBlock:
@@ -260,13 +262,6 @@ IF lPart[1] THEN DO:
    ** with 30 minutes of time left and 
    ** no open valves */
    iSolution = getMaxFlow("AA", 30, "").
-
-   IF lvlDebug THEN DO:
-      MESSAGE 
-      "Total Function Calls:" iFunctionCalls SKIP 
-      "Already Visited:" iAlreadyVisited SKIP 
-      VIEW-AS ALERT-BOX.
-   END.
    
    IF lvlShow THEN DO:
       PUT UNFORMATTED 
@@ -283,6 +278,13 @@ IF lPart[1] THEN DO:
       SUBSTITUTE ("Found solution in &1 msecs.", ETIME)
    VIEW-AS ALERT-BOX TITLE " 2022 - Day 16 - Part One".
 
+   IF lvlDebug
+   OR lvlShow THEN DO:
+      MESSAGE 
+      "Total Function Calls:" iFunctionCalls SKIP 
+      "Already Visited:" iAlreadyVisited SKIP 
+      VIEW-AS ALERT-BOX.
+   END.      
 END.
 
 
@@ -409,7 +411,8 @@ DEFINE VARIABLE iTimeLeft    AS INTEGER NO-UNDO.
 DEFINE VARIABLE cNewOpenList AS CHARACTER NO-UNDO.
 DEFINE VARIABLE cSwitches    AS CHARACTER NO-UNDO.
 
-   IF lvlDebug THEN DO:
+   IF lvlDebug 
+   OR lvlShow THEN DO:
       ASSIGN 
          iFunctionCalls = iFunctionCalls + 1
       .
@@ -433,7 +436,8 @@ DEFINE VARIABLE cSwitches    AS CHARACTER NO-UNDO.
       IF lvlShow THEN
          PUT UNFORMATTED 
          SUBSTITUTE ("Already visited (&1): &2", ttVisited.cOpenSwitches, ttVisited.iMaxValue) SKIP.
-      IF lvlDebug THEN 
+      IF lvlDebug 
+      OR lvlShow THEN 
          iAlreadyVisited = iAlreadyVisited + 1. 
       RETURN ttVisited.iMaxValue.
    END.
