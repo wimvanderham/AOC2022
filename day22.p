@@ -142,12 +142,14 @@ DO iLine = 1 TO NUM-ENTRIES (lcInput, "~n"):
    END.
    IF cSection = "Instructions" THEN DO:
       lvcInstructions = cLine.
+      /* Create a list of the instructions */
       lvcInstructions = REPLACE (lvcInstructions, "R", ",R,").
       lvcInstructions = REPLACE (lvcInstructions, "L", ",L,").
    END.
 END. /* ReadBlock: */
 
 IF lPart[2] THEN DO:
+   /* Make the cube foldings */
    RUN createCube.
 END.
 
@@ -300,6 +302,20 @@ DO iInstruction = 1 TO NUM-ENTRIES (lvcInstructions):
           INPUT SUBSTITUTE ("&1 of (&2): &3 &4", iInstruction, lvcInstructions, cInstruction, cDirection)).
    END.
 END. /* Instruction block */
+
+FIND  ttStep
+WHERE ttStep.iRow EQ lviRow
+AND   ttStep.iCol EQ lviCol.
+/* Flag the final step */
+ttStep.cType = "*".
+IF lvlShow THEN DO:
+   RUN showGrid
+      (INPUT SUBSTITUTE ("output\22_&1.txt", iInstruction),
+       INPUT SUBSTITUTE ("Reached final step (&1, &2) with last direction &3.", 
+                         lviRow,
+                         lviCol,
+                         cDirection)).
+END.
 
 iSolution = lviRow * 1000 + 4 * lviCol + LOOKUP (cDirection, cDirections) - 1.
              
