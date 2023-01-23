@@ -74,14 +74,19 @@ DEFINE TEMP-TABLE ttMove
    FIELD iDeltaPosY AS INTEGER
 INDEX indDirection IS UNIQUE cDirection.
 
-DEFINE VARIABLE lviMaxX    AS INTEGER NO-UNDO.
-DEFINE VARIABLE lviMaxY    AS INTEGER NO-UNDO.
-DEFINE VARIABLE lviStartX  AS INTEGER NO-UNDO.
-DEFINE VARIABLE lviStartY  AS INTEGER NO-UNDO.
-DEFINE VARIABLE lviEndX    AS INTEGER NO-UNDO.
-DEFINE VARIABLE lviEndY    AS INTEGER NO-UNDO.   
-DEFINE VARIABLE iNextRound AS INTEGER NO-UNDO.
-DEFINE VARIABLE iNextStep  AS INTEGER NO-UNDO.
+DEFINE VARIABLE lviMaxX      AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lviMaxY      AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lviStartX    AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lviStartY    AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lviEndX      AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lviEndY      AS INTEGER   NO-UNDO.   
+DEFINE VARIABLE iNextRound   AS INTEGER   NO-UNDO.
+DEFINE VARIABLE iNextStep    AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lviGoalX     AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lviGoalY     AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lvcGoals     AS CHARACTER NO-UNDO INITIAL "End,Start,End".
+DEFINE VARIABLE lviGoal      AS INTEGER   NO-UNDO.
+DEFINE VARIABLE lvlFoundGoal AS LOGICAL   NO-UNDO.
    
 /* ********************  Preprocessor Definitions  ******************** */
    
@@ -202,6 +207,13 @@ ASSIGN
    ttStep.iStepY = lviStartY
 .
 
+ASSIGN 
+   lviGoalX     = lviEndX
+   lviGoalY     = lviEndY
+   lviGoal      = 1
+   lvlFoundGoal = FALSE 
+.
+
 MainBlock:
 REPEAT:
    ASSIGN 
@@ -227,6 +239,7 @@ REPEAT:
          ttBlizzard.iPosY = lviMaxY - 1.
    END.  /* Move the Blizzards */ 
    
+   StepBlock:
    FOR EACH ttStep
    WHERE ttStep.iRound EQ iNextRound:
       /* All available Positions */
@@ -243,19 +256,23 @@ REPEAT:
             /* Y outside the basin */
             NEXT MoveBlock.
          END.
+         /* Is there a Blizzard on the next Move? */
          FIND FIRST ttBlizzard 
          WHERE ttBlizzard.iPosX EQ (ttStep.iStepX + ttMove.iDeltaPosX)
          AND   ttBlizzard.iPosY EQ (ttStep.iStepY + ttMove.iDeltaPosY) NO-ERROR.
+         /* Is there a Wall on the next Move? */
          FIND  ttWall
          WHERE ttWall.iWallX EQ (ttStep.iStepX + ttMove.iDeltaPosX)
          AND   ttWall.iWallY EQ (ttStep.iStepY + ttMove.iDeltaPosY) NO-ERROR.
          IF  NOT AVAILABLE ttBlizzard 
          AND NOT AVAILABLE ttWall THEN DO:
+            /* No Blizzard and no Wall, create next Destination */
             FIND FIRST ttNextStep
             WHERE ttNextStep.iStepX EQ (ttStep.iStepX + ttMove.iDeltaPosX)
             AND   ttNextStep.iStepY EQ (ttStep.iStepY + ttMove.iDeltaPosY) 
             AND   ttNextStep.iRound EQ ttStep.iRound + 1 NO-ERROR.
             IF NOT AVAILABLE ttNextStep THEN DO:
+               /* If the next Destination is a new one */
                CREATE ttNextStep.
                ASSIGN
                   iNextStep         = iNextStep + 1
@@ -265,20 +282,67 @@ REPEAT:
                   ttNextStep.iStepY = (ttStep.iStepY + ttMove.iDeltaPosY)
                   ttNextStep.cPath  = SUBSTITUTE ("&1&2", ttStep.cPath, ttMove.cDirection)
                .
-               IF  ttNextStep.iStepX EQ lviEndX
-               AND ttNextStep.iStepY EQ lviEndY THEN DO:
-                  iSolution = ttStep.iRound.
-                  RUN showGrid
-                     (INPUT "output\24_Part1.txt",
-                      INPUT iNextRound).
-                  LEAVE MainBlock.
-               END.                  
+               IF  ttNextStep.iStepX EQ lviGoalX
+               AND ttNextStep.iStepY EQ lviGoalY THEN DO:
+                  /* Reached a Goal */
+                  lvlFoundGoal = TRUE.
+                  LEAVE StepBlock.
+               END. /* Reached a Goal */             
             END.
          END.
       END. /* All possible Moves */
       DELETE ttStep.
-   END. /* All available Positions */
-      
+   END. /* StepBlock: All available Positions */
+   IF lvlFoundGoal THEN DO:
+      /* Found a Goal */
+      IF lPart[1] THEN DO:
+         /* Part 1 */
+         /* We've reached the End destination */
+         iSolution = iNextRound.
+         RUN showGrid
+            (INPUT "output\24_Part1.txt",
+             INPUT iNextRound).
+         LEAVE MainBlock.
+      END. /* Part 1 */
+      IF lPart[2] THEN DO:
+         /* Part 2 */
+         IF lviGoal EQ NUM-ENTRIES (lvcGoals) THEN DO:
+            iSolution = iNextRound.
+            RUN showGrid
+               (INPUT "output\24_Part2.txt",
+                INPUT iNextRound).
+            LEAVE MainBlock.
+         END.
+         ELSE DO:
+            /* Remove all previous Steps */
+            EMPTY TEMP-TABLE ttStep.
+            /* Create New start position */
+            CREATE ttStep.
+            ASSIGN 
+               ttStep.iRound = iNextRound + 1 
+               ttStep.iStep  = 1
+               ttStep.iStepX = lviGoalX
+               ttStep.iStepY = lviGoalY
+            .
+            /* Set the next goal */
+            lviGoal = lviGoal + 1.
+            CASE ENTRY (lviGoal, lvcGoals):
+               WHEN "Start" THEN 
+                  ASSIGN 
+                     lviGoalX = lviStartX
+                     lviGoalY = lviStartY
+                  .
+               WHEN "End" THEN 
+                  ASSIGN 
+                     lviGoalX = lviEndX
+                     lviGoalY = lviEndY
+                  .
+            END CASE.
+            lvlFoundGoal = FALSE.
+         END. /* Remove all previous Steps */   
+      END. /* Part 2 */         
+   END. /* Found a Goal */
+         
    IF  lvlDebug
    AND lvlShow THEN DO:
       RUN showGrid
@@ -288,14 +352,12 @@ REPEAT:
          
 END. /* MainBlock */   
 
-          
 IF lvlShow THEN DO:
    RUN sy\win\wbrowsett.w
       (INPUT TEMP-TABLE ttBlizzard:HANDLE).
 END.
    
 IF lPart[1] THEN DO:
-   
    OUTPUT TO "clipboard".
    PUT UNFORMATTED iSolution SKIP.
    OUTPUT CLOSE.
