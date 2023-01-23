@@ -73,7 +73,6 @@ DEFINE VARIABLE iRun           AS INTEGER NO-UNDO.
    
 /* ************************  Function Prototypes ********************** */
 
-
 /* ***************************  Main Block  *************************** */
 DISPLAY
    lOpenURL          LABEL "Open URL?"     VIEW-AS TOGGLE-BOX SKIP 
@@ -260,8 +259,10 @@ DO iNextNumber = 1 TO 3000:
    CASE iNextNumber:
       WHEN 1000 OR 
       WHEN 2000 OR 
-      WHEN 3000 THEN
+      WHEN 3000 THEN DO:
          iSolution = iSolution + ttMoveNumber.iNumber.
+         cSolution = SUBSTITUTE ("&1&2&31th: &4", cSolution, (IF cSolution NE "" THEN "~n" ELSE ""), iNextNumber, ttMoveNumber.iNumber).
+      END. 
    END CASE.
 
    iRightNumber = ttMoveNumber.iNextOriginal.
@@ -277,7 +278,8 @@ IF lPart[1] THEN DO:
    MESSAGE 
       SUBSTITUTE ("Solution: &1.", 
          iSolution) SKIP (1)
-      SUBSTITUTE ("Found solution in &1 msecs.", ETIME)
+      SUBSTITUTE ("Found solution in &1 msecs.", ETIME) SKIP (1)
+      cSolution
    VIEW-AS ALERT-BOX TITLE " 2022 - Day 20 - Part One".
    IF lvlShow THEN DO:
       RUN sy\win\wbrowsett.w
@@ -294,7 +296,8 @@ IF lPart[2] THEN DO:
    MESSAGE 
       SUBSTITUTE ("Solution: &1.", 
          iSolution) SKIP (1)
-      SUBSTITUTE ("Found solution in &1 msecs.", ETIME)
+      SUBSTITUTE ("Found solution in &1 msecs.", ETIME) SKIP (1)
+      cSolution
    VIEW-AS ALERT-BOX TITLE " 2022 - Day 20 - Part Two".
 END. /* Process Part Two */
 
