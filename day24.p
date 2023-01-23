@@ -230,25 +230,6 @@ REPEAT:
    FOR EACH ttStep
    WHERE ttStep.iRound EQ iNextRound:
       /* All available Positions */
-/*      IF  ttStep.iStepX NE lviStartX         */
-/*      AND ttStep.iStepY NE lviStartY THEN DO:*/
-         /* Check if we can wait */
-         FIND  ttBlizzard
-         WHERE ttBlizzard.iPosX EQ ttStep.iStepX
-         AND   ttBlizzard.iPosY EQ ttStep.iStepY NO-ERROR.
-         IF NOT AVAILABLE ttBlizzard THEN DO:
-            /* Can choose to not move */
-            CREATE ttNextStep.
-            ASSIGN
-               iNextStep         = iNextStep + 1 
-               ttNextStep.iRound = ttStep.iRound + 1
-               ttNextStep.iStep  = iNextStep
-               ttNextStep.iStepX = ttStep.iStepX
-               ttNextStep.iStepY = ttStep.iStepY
-               ttNextStep.cPath  = SUBSTITUTE ("&1_", ttStep.cPath)
-            .
-/*         END. /* Can choose to not move */*/
-      END.      
       MoveBlock:
       FOR EACH ttMove:
          /* All possible Moves */
@@ -272,7 +253,8 @@ REPEAT:
          AND NOT AVAILABLE ttWall THEN DO:
             FIND FIRST ttNextStep
             WHERE ttNextStep.iStepX EQ (ttStep.iStepX + ttMove.iDeltaPosX)
-            AND   ttNextStep.iStepY EQ (ttStep.iStepY + ttMove.iDeltaPosY) NO-ERROR.
+            AND   ttNextStep.iStepY EQ (ttStep.iStepY + ttMove.iDeltaPosY) 
+            AND   ttNextStep.iRound EQ ttStep.iRound + 1 NO-ERROR.
             IF NOT AVAILABLE ttNextStep THEN DO:
                CREATE ttNextStep.
                ASSIGN
@@ -304,14 +286,6 @@ REPEAT:
           INPUT iNextRound).
    END.
          
-   IF lPart[1] THEN DO:
-      /*
-      IF iNextRound EQ 20 THEN DO:
-         LEAVE MainBlock.
-      END.
-      */
-   END.      
-   
 END. /* MainBlock */   
 
           
