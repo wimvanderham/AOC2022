@@ -483,8 +483,10 @@ IF lPart[2] THEN DO:
             IF (ACCUM COUNT "") EQ 0 THEN
                LEAVE.
          END.
-         RUN sy\win\wbrowsett.w
-            (INPUT TEMP-TABLE ttMonkey:HANDLE).
+         IF lvlShow THEN DO:
+            RUN sy\win\wbrowsett.w
+               (INPUT TEMP-TABLE ttMonkey:HANDLE).
+         END.
          LEAVE.
       END.
                            
