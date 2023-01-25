@@ -199,6 +199,7 @@ AND lvlShow THEN DO:
        INPUT 0).
 END.
 
+/* Start Position */
 CREATE ttStep.
 ASSIGN 
    ttStep.iRound = 1
@@ -207,6 +208,7 @@ ASSIGN
    ttStep.iStepY = lviStartY
 .
 
+/* First Goal */
 ASSIGN 
    lviGoalX     = lviEndX
    lviGoalY     = lviEndY
