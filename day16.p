@@ -377,7 +377,9 @@ FUNCTION getBinary RETURNS CHARACTER
 DEFINE VARIABLE iBit    AS INTEGER NO-UNDO.
 DEFINE VARIABLE iValue  AS INTEGER NO-UNDO.
 DEFINE VARIABLE cBinary AS CHARACTER NO-UNDO.
+DEFINE VARIABLE iInput  AS INT64 NO-UNDO.
 
+   iInput = ipiInt64.
    iValue = 1.
    DO iBit = 1 TO ipiLength:
       IF ipiInt64 MOD (iValue * 2) NE 0 THEN 
@@ -388,7 +390,10 @@ DEFINE VARIABLE cBinary AS CHARACTER NO-UNDO.
       ipiInt64 = ipiInt64 - (ipiInt64 MOD iValue).
    END.
    
-   RETURN cBinary.
+   IF ipiInt64 GT 0 THEN 
+      RETURN getBinary(iInput, ipiLength + 1).
+   ELSE 
+      RETURN cBinary.
                      
 END FUNCTION.
 
@@ -418,6 +423,7 @@ DEFINE VARIABLE cSwitches    AS CHARACTER NO-UNDO.
       .
    END.
    
+   /*
    IF lvlShow THEN DO:
       PUT UNFORMATTED 
       SUBSTITUTE ("From: &1, Left Minutes: &2, Open Valves: &3 ...",
@@ -426,19 +432,22 @@ DEFINE VARIABLE cSwitches    AS CHARACTER NO-UNDO.
                   ipcOpenList) SKIP.
                   
    END.
-
+   */
+   
    cSwitches = getSwitches(ipcOpenList).   
    FIND  ttVisited
    WHERE ttVisited.cValve        EQ ipcValve
    AND   ttVisited.iTimeLeft     EQ ipiTimeLeft
    AND   ttVisited.cOpenSwitches EQ cSwitches NO-ERROR.
    IF AVAILABLE ttVisited THEN DO:
+      /*
       IF lvlShow THEN
          PUT UNFORMATTED 
          SUBSTITUTE ("Already visited (&1): &2", ttVisited.cOpenSwitches, ttVisited.iMaxValue) SKIP.
       IF lvlDebug 
       OR lvlShow THEN 
-         iAlreadyVisited = iAlreadyVisited + 1. 
+         iAlreadyVisited = iAlreadyVisited + 1.
+      */ 
       RETURN ttVisited.iMaxValue.
    END.
       
@@ -450,13 +459,14 @@ DEFINE VARIABLE cSwitches    AS CHARACTER NO-UNDO.
    WHERE ttPath.cFromValve EQ ttValve.cValve,
    FIRST ttNextValve
    WHERE ttNextValve.cValve EQ ttPath.cToValve:
+      /*
       IF lvlShow THEN
          PUT UNFORMATTED 
          SUBSTITUTE ("to Valve: &1, Path: &2, Flow rate: &3.",
                      ttNextValve.cValve,
                      ttPath.iMinutes,
                      ttNextValve.cValve) SKIP.
-                     
+      */               
       IF LOOKUP (ttNextValve.cValve, ipcOpenList) NE 0 THEN 
          /* Next Valve already open */
          NEXT.
@@ -474,6 +484,7 @@ DEFINE VARIABLE cSwitches    AS CHARACTER NO-UNDO.
       iMaxValue = MAXIMUM (iMaxValue, getMaxFlow(ttNextValve.cValve, iTimeLeft, cNewOpenList) + (iTimeLeft * ttNextValve.iFlowRate)).
    END.
    
+   /*
    IF lvlShow THEN DO:
       PUT UNFORMATTED 
       SUBSTITUTE ("From: &1, Left Minutes: &2, Open Valves: &3 Max Value: &4",
@@ -482,6 +493,7 @@ DEFINE VARIABLE cSwitches    AS CHARACTER NO-UNDO.
                   ipcOpenList,
                   iMaxValue) SKIP.
    END.
+   */
    
    CREATE ttVisited.
    ASSIGN 
