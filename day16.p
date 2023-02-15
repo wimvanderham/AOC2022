@@ -302,6 +302,8 @@ IF lPart[2] THEN DO:
    IF lvlShow THEN DO:
       OUTPUT TO "output\16_2.txt".
       PUT UNFORMATTED 
+      SUBSTITUTE ("Start Run &1", STRING (NOW, "99-99-9999 HH:MM:SS")) SKIP(1).
+      PUT UNFORMATTED 
       SUBSTITUTE ("#Valves: &1, Maximum Valve States: &2", (ACCUM COUNT "Valve"), iMaxValveStates) SKIP.
    END.
    
@@ -324,6 +326,10 @@ IF lPart[2] THEN DO:
          PUT UNFORMATTED 
          SUBSTITUTE (" Solution = &1", iSolution) SKIP.
       END.                            
+   END.
+               
+   IF lvlShow THEN DO:
+      OUTPUT CLOSE.
    END.
                      
    OUTPUT TO "clipboard".
