@@ -41,8 +41,8 @@ DEFINE VARIABLE iPart        AS INTEGER   NO-UNDO.
 DEFINE VARIABLE iNr AS INTEGER NO-UNDO.
 
 DEFINE TEMP-TABLE ttElf
-   FIELD iNr AS INTEGER 
-   FIELD iTotCal AS INT64
+   FIELD iNr     AS INTEGER FORMAT "zzz9"    LABEL "Elf Nr" 
+   FIELD iTotCal AS INT64   FORMAT "zzz,zz9" LABEL "Total Calories"
 INDEX indNR IS UNIQUE iNr.
 
 /* ********************  Preprocessor Definitions  ******************** */
@@ -176,6 +176,4 @@ CATCH oError AS Progress.Lang.Error :
    END.
    RETURN.      
 END CATCH.
-
-/* **********************  Internal Procedures  *********************** */
 
