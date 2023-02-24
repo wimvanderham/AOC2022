@@ -156,11 +156,11 @@ IF lPart[1] THEN DO:
          IF NOT AVAILABLE ttDouble THEN DO:
             /* First time this double found */
             CREATE ttDouble.
-            ASSIGN 
+            ASSIGN
                ttDouble.iNr       = ttRuckSackContents.iNr
                ttDouble.iPriority = ttRuckSackContents.iPriority
             .
-            
+
             iSolution = iSolution + ttRuckSackContents.iPriority.
             IF lvlShow THEN DO:
                MESSAGE 
@@ -189,39 +189,26 @@ END. /* Process Part One */
 IF lPart[2] THEN DO:
    /* Process Part Two */
    ETIME (YES).
-
-   EMPTY TEMP-TABLE ttDouble.
    
-   iSolution = 0.
-
+   iSolution      = 0.
    iCheckRuckSack = 1.
    REPEAT:
       FIND FIRST ttRuckSackContents
       WHERE ttRuckSackContents.iNr EQ iCheckRuckSack NO-ERROR.
-      IF NOT AVAILABLE ttRuckSackContents THEN DO:
+      IF NOT AVAILABLE ttRuckSackContents THEN
          /* No more RuckSacks to check */
          LEAVE.
-      END.
 
       FOR EACH ttRuckSackContents 
       WHERE ttRuckSackContents.iNr EQ iCheckRuckSack,
-      EACH  ttOtherRuckSackContents 
+      FIRST ttOtherRuckSackContents 
       WHERE ttOtherRuckSackContents.iNr       EQ ttRuckSackContents.iNr + 1
       AND   ttOtherRuckSackContents.iPriority EQ ttRuckSackContents.iPriority,
-      EACH  ttThirdRuckSackContents
+      FIRST ttThirdRuckSackContents
       WHERE ttThirdRuckSackContents.iNr       EQ ttRuckSackContents.iNr + 2
       AND   ttThirdRuckSackContents.iPriority EQ ttRuckSackContents.iPriority:
-         FIND FIRST ttDouble
-         WHERE ttDouble.iNr EQ ttRuckSackContents.iNr
-         AND   ttDouble.iPriority EQ ttRuckSackContents.iPriority NO-ERROR.
-         IF NOT AVAILABLE ttDouble THEN DO:
-            CREATE ttDouble.
-            ASSIGN 
-               ttDouble.iNr       = ttRuckSackContents.iNr
-               ttDouble.iPriority = ttRuckSackContents.iPriority
-            .
-            iSolution = iSolution + ttDouble.iPriority.
-         END.
+         iSolution = iSolution + ttRuckSackContents.iPriority.
+         LEAVE.
       END.
       
       iCheckRuckSack = iCheckRuckSack + 3.
