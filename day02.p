@@ -38,10 +38,9 @@ DEFINE VARIABLE lvlShow      AS LOGICAL   NO-UNDO INITIAL FALSE.
 DEFINE VARIABLE iPart        AS INTEGER   NO-UNDO.
 
 /* Specific */
-DEFINE VARIABLE cYouPlay  AS CHARACTER NO-UNDO INITIAL "A,B,C".
+DEFINE VARIABLE cTheyPlay AS CHARACTER NO-UNDO INITIAL "A,B,C".
+DEFINE VARIABLE cYouPlay  AS CHARACTER NO-UNDO INITIAL "X,Y,Z".
 DEFINE VARIABLE cObject   AS CHARACTER NO-UNDO INITIAL "Rock,Paper,Scissors".
-DEFINE VARIABLE iObject   AS INTEGER   NO-UNDO EXTENT 3 INITIAL [1, 2, 3].
-DEFINE VARIABLE cTheyPlay AS CHARACTER NO-UNDO INITIAL "X,Y,Z".
 
 DEFINE VARIABLE cGamePlay    AS CHARACTER NO-UNDO EXTENT 2.
 DEFINE VARIABLE iGamePoints  AS INTEGER   NO-UNDO.
@@ -57,7 +56,7 @@ Appreciative of your help yesterday, one Elf gives you an encrypted strategy gui
 /* ************************  Function Prototypes ********************** */
 
 FUNCTION getResult RETURNS INTEGER 
-   (INPUT ipcYouPlay AS CHARACTER, INPUT ipcTheyPlay AS CHARACTER) FORWARD.
+   (INPUT ipcTheyPlay AS CHARACTER, INPUT ipcYouPlay AS CHARACTER) FORWARD.
 
 /* ***************************  Main Block  *************************** */
 
@@ -110,11 +109,11 @@ DO iLine = 1 TO NUM-ENTRIES (lcInput, "~n"):
    
    /* Decrypt input, transform A, B, C, X, Y, Z in Standard Objects */
    ASSIGN 
-      cGamePlay[1] = ENTRY (LOOKUP (cGamePlay[1], cYouPlay),  cObject).
+      cGamePlay[1] = ENTRY (LOOKUP (cGamePlay[1], cTheyPlay),  cObject).
    .
    
    IF lPart[1] THEN DO:
-      cGamePlay[2] = ENTRY (LOOKUP (cGamePlay[2], cTheyPlay), cObject).
+      cGamePlay[2] = ENTRY (LOOKUP (cGamePlay[2], cYouPlay), cObject).
    END.
          
    IF lPart[2] EQ TRUE THEN DO:
@@ -174,7 +173,6 @@ END. /* Process Part One */
 
 IF lPart[2] THEN DO:
    /* Process Part Two */
-   ETIME (YES).
 
    iSolution = iTotalPoints.
    
