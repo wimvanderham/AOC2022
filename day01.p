@@ -17,10 +17,16 @@
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
 /* Variables for Problem */
-DEFINE VARIABLE cURL         AS CHARACTER NO-UNDO INITIAL "https://adventofcode.com/2022/day/1".
+DEFINE VARIABLE cURL         AS CHARACTER NO-UNDO INITIAL "https://adventofcode.com/&1/day/&2".
 DEFINE VARIABLE cCommand     AS CHARACTER NO-UNDO.
 
 /* Variables for input handling */
+DEFINE VARIABLE lDownload    AS LOGICAL   NO-UNDO.
+DEFINE VARIABLE cSession     AS CHARACTER NO-UNDO INITIAL "53616c7465645f5f0aa2b48889c4ecb0a71e7086a3ce378be60c9c62fff2ce2f0a803b3cf401a90e48d12df95cfd2383f2923a50c7378e392a1b5d4ce4438c7e".
+DEFINE VARIABLE iYear        AS INTEGER   NO-UNDO INITIAL 2022.
+DEFINE VARIABLE iDay         AS INTEGER   NO-UNDO INITIAL 1.
+DEFINE VARIABLE hPLIP        AS HANDLE    NO-UNDO.
+DEFINE VARIABLE cInputFile   AS CHARACTER NO-UNDO.
 DEFINE VARIABLE lcInput      AS LONGCHAR  NO-UNDO.
 DEFINE VARIABLE iLine        AS INTEGER   NO-UNDO.
 DEFINE VARIABLE cLine        AS CHARACTER NO-UNDO.
@@ -55,29 +61,73 @@ INDEX indNR IS UNIQUE iNr.
 
 /* ***************************  Main Block  *************************** */
 DISPLAY
-   lOpenURL LABEL "Open URL?"     VIEW-AS TOGGLE-BOX SKIP 
-   lPart[1] LABEL "Solve Part 1?" VIEW-AS TOGGLE-BOX SKIP
-   lPart[2] LABEL "Solve Part 2?" VIEW-AS TOGGLE-BOX SKIP 
-   lvlDebug LABEL "Debug?"        VIEW-AS TOGGLE-BOX SKIP 
-   lvlShow  LABEL "Show?"         VIEW-AS TOGGLE-BOX SKIP
+   SUBSTITUTE ("Year &1 Day &2", iYear, iDay) FORMAT "X(16)" NO-LABELS SKIP
+   lOpenURL  LABEL "Open URL?"       VIEW-AS TOGGLE-BOX SKIP
+   lDownload LABEL "Download Input?" VIEW-AS TOGGLE-BOX SKIP   
+   lPart[1]  LABEL "Solve Part 1?"   VIEW-AS TOGGLE-BOX SKIP
+   lPart[2]  LABEL "Solve Part 2?"   VIEW-AS TOGGLE-BOX SKIP 
+   lvlDebug  LABEL "Debug?"          VIEW-AS TOGGLE-BOX SKIP 
+   lvlShow   LABEL "Show?"           VIEW-AS TOGGLE-BOX SKIP
 WITH FRAME fr-Parameters SIDE-LABELS ROW 3 CENTERED TITLE " Parameters ".
+
+ASSIGN 
+   lDownload  = FALSE
+   cInputfile = SUBSTITUTE ("input\&1.txt", STRING (iDay, "99"))
+   cURL       = SUBSTITUTE (cURL, iYear, iDay)
+.
+
+FILE-INFO:FILE-NAME = cInputFile.
+IF FILE-INFO:FILE-TYPE EQ ? THEN DO:
+   lDownload = TRUE.
+END.
 
 UPDATE
    lOpenURL
+   lDownload
    lPart
    lvlDebug
    lvlShow
 WITH FRAME fr-Parameters.
 
+RUN plip_aoc.p PERSISTENT SET hPLIP.
+
 IF lOpenURL THEN DO:
+   RUN chkURL IN hPLIP
+      (INPUT  iYear,
+       INPUT  iDay,
+       OUTPUT lOk,
+       OUTPUT cMessage).
+   IF lOk EQ FALSE THEN DO:
+      MESSAGE cMessage
+      VIEW-AS ALERT-BOX WARNING.
+      RETURN.
+   END.
+       
    cCommand = SUBSTITUTE ("start &1", cURL).
    OS-COMMAND SILENT VALUE (cCommand).
 END.
 
+IF lDownload THEN DO:
+   
+   RUN getInput IN hPLIP
+      (INPUT  cSession,
+       INPUT  iYear,
+       INPUT  iDay,
+       INPUT  cInputFile,
+       OUTPUT lOk,
+       OUTPUT cMessage).
+
+   IF lOk EQ FALSE THEN DO:
+      MESSAGE cMessage
+      VIEW-AS ALERT-BOX WARNING.
+      RETURN.
+   END.
+END.
+       
 /* Start Processing */
 ETIME (YES).
 
-COPY-LOB FROM FILE "input\01.txt" TO OBJECT lcInput.
+COPY-LOB FROM FILE cInputfile TO OBJECT lcInput.
 
 /* Read Input into Temp-table */
 ReadBlock:
