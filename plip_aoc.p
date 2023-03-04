@@ -17,6 +17,7 @@
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
 USING Progress.Lang.*.
+USING OpenEdge.Core.*.
 USING OpenEdge.Net.HTTP.*.
 
 /* ********************  Preprocessor Definitions  ******************** */
@@ -193,11 +194,10 @@ DEFINE VARIABLE lcInput   AS LONGCHAR         NO-UNDO.
       RETURN.
    END.
                                      
-   OUTPUT TO VALUE(ipcFileName).
-   PUT UNFORMATTED 
-   TRIM (STRING (oResponse:Entity)) SKIP.
-   OUTPUT CLOSE.
+   lcInput = CAST (oResponse:Entity, String):VALUE.
    
+   COPY-LOB FROM lcInput TO FILE ipcFileName.
+                                     
    FILE-INFO:FILE-NAME = ipcFileName.
    
    ASSIGN 
