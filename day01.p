@@ -55,7 +55,7 @@ INDEX indNR IS UNIQUE iNr.
 
 
 /* ***************************  Main Block  *************************** */
-
+{AOC_session.i}
 
 /* ************************  Function Prototypes ********************** */
 
